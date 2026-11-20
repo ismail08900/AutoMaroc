@@ -10,6 +10,9 @@ dist/
 web-build/
 expo-env.d.ts
 
+# Backups & local caches
+.backup_auth/
+
 # Native
 .kotlin/
 *.orig.*
