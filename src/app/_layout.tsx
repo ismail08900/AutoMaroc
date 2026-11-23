@@ -1,25 +1,27 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { Stack, router } from 'expo-router';
-import { View, ActivityIndicator, StyleSheet, Platform } from 'react-native';
+import { View, StyleSheet, Platform } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import { supabase } from '../lib/supabase';
 import {
   isBiometricLockEnabled,
   isBiometricAvailable,
 } from '../services/biometricService';
+import AutomotiveSplash from '../components/AutomotiveSplash';
 
 WebBrowser.maybeCompleteAuthSession();
 
 export default function RootLayout() {
-  const [ready, setReady] = useState(false);
+  const [splashFinished, setSplashFinished] = useState(false);
+  const targetRouteRef = useRef<'/home' | '/lock' | null>(null);
+  const authCheckedRef = useRef(false);
 
   useEffect(() => {
-    // Au démarrage, vérifier session + préférence biométrique
+    // Au démarrage, vérifier session + préférence biométrique en parallèle de l'animation
     (async () => {
       try {
-        // On ne fait ce check automatique que sur mobile
         if (Platform.OS === 'web') {
-          setReady(true);
+          authCheckedRef.current = true;
           return;
         }
 
@@ -31,60 +33,70 @@ export default function RootLayout() {
           const bioAvailable = await isBiometricAvailable();
 
           if (bioEnabled && bioAvailable) {
-            // Session valide + biométrie activée → écran de verrouillage
-            router.replace('/lock');
+            targetRouteRef.current = '/lock';
           } else {
-            // Session valide, pas de biométrie → accès direct
-            router.replace('/home');
+            targetRouteRef.current = '/home';
           }
+        } else {
+          targetRouteRef.current = null;
         }
-        // Pas de session → l'écran index (login) est affiché par défaut
       } catch (err) {
         console.warn('[Layout] Erreur vérification initiale:', err);
+        targetRouteRef.current = null;
       } finally {
-        setReady(true);
+        authCheckedRef.current = true;
       }
     })();
   }, []);
 
-  // Afficher un splash/loading tant que la vérification n'est pas terminée
-  // pour éviter un flash de l'écran de login
-  if (!ready) {
-    return (
-      <View style={styles.splash}>
-        <ActivityIndicator size="large" color="#176B52" />
-      </View>
-    );
-  }
+  const handleSplashFinish = useCallback(async () => {
+    // Attendre que la vérification d'authentification soit terminée (avec timeout de sécurité)
+    const startTime = Date.now();
+    while (!authCheckedRef.current && Date.now() - startTime < 1500) {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+
+    const target = targetRouteRef.current;
+    if (target === '/lock') {
+      router.replace('/lock');
+    } else if (target === '/home') {
+      router.replace('/home');
+    }
+    // Si target === null, on reste sur l'écran index (connexion)
+
+    setSplashFinished(true);
+  }, []);
 
   return (
-    <Stack
-      screenOptions={{
-        headerShown: false,
-        // Empêcher le retour par geste sur l'écran lock
-        gestureEnabled: false,
-      }}
-    >
-      <Stack.Screen name="index" />
-      <Stack.Screen
-        name="lock"
-        options={{
+    <View style={styles.container}>
+      <Stack
+        screenOptions={{
+          headerShown: false,
           gestureEnabled: false,
-          animation: 'fade',
         }}
-      />
-      <Stack.Screen name="home" />
-      <Stack.Screen name="auth/callback" />
-      <Stack.Screen name="auth/reset-password" />
-    </Stack>
+      >
+        <Stack.Screen name="index" />
+        <Stack.Screen
+          name="lock"
+          options={{
+            gestureEnabled: false,
+            animation: 'fade',
+          }}
+        />
+        <Stack.Screen name="home" />
+        <Stack.Screen name="auth/callback" />
+        <Stack.Screen name="auth/reset-password" />
+      </Stack>
+
+      {!splashFinished && (
+        <AutomotiveSplash onFinish={handleSplashFinish} />
+      )}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  splash: {
+  container: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#F3F6FA',
   },
 });
