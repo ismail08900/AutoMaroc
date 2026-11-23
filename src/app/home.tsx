@@ -6,16 +6,26 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
+  Switch,
 } from 'react-native';
 import { router } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import { signOut } from '../services/authService';
+import {
+  isBiometricAvailable,
+  isBiometricLockEnabled,
+  setBiometricLockEnabled,
+  authenticateWithBiometric,
+} from '../services/biometricService';
 
 export default function HomeScreen() {
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [userName, setUserName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [bioAvailable, setBioAvailable] = useState(false);
+  const [bioEnabled, setBioEnabled] = useState(false);
+  const [bioToggling, setBioToggling] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -38,9 +48,18 @@ export default function HomeScreen() {
               ? `${user.user_metadata?.prenom || ''} ${user.user_metadata?.nom || ''}`.trim()
               : null);
           setUserName(name || null);
+
+          // Vérifier la disponibilité et l'état du verrouillage biométrique
+          const available = await isBiometricAvailable();
+          setBioAvailable(available);
+          if (available) {
+            const enabled = await isBiometricLockEnabled();
+            setBioEnabled(enabled);
+          }
+
           setLoading(false);
         }
-      } catch (err) {
+      } catch {
         if (isMounted) router.replace('/');
       }
     };
@@ -74,6 +93,27 @@ export default function HomeScreen() {
     }
   };
 
+  const handleBiometricToggle = async (value: boolean) => {
+    setBioToggling(true);
+    try {
+      if (value) {
+        // Vérifier l'identité avant d'activer le verrouillage
+        const authResult = await authenticateWithBiometric();
+        if (!authResult.success) {
+          // L'utilisateur a annulé ou l'authentification a échoué
+          setBioToggling(false);
+          return;
+        }
+      }
+      await setBiometricLockEnabled(value);
+      setBioEnabled(value);
+    } catch (err) {
+      console.warn('[Home] Erreur toggle biométrique:', err);
+    } finally {
+      setBioToggling(false);
+    }
+  };
+
   if (loading) {
     return (
       <View style={styles.center}>
@@ -102,6 +142,29 @@ export default function HomeScreen() {
         <View style={styles.statusBadge}>
           <Text style={styles.statusText}>✓ Compte vérifié et connecté</Text>
         </View>
+
+        {bioAvailable && (
+          <View style={styles.biometricRow}>
+            <View style={styles.biometricInfo}>
+              <Text style={styles.biometricLabel}>🔒 Verrouillage biométrique</Text>
+              <Text style={styles.biometricHint}>
+                {bioEnabled
+                  ? 'Empreinte ou visage requis à chaque ouverture'
+                  : 'Protégez l\'accès à votre application'}
+              </Text>
+            </View>
+            {bioToggling ? (
+              <ActivityIndicator size="small" color="#176B52" />
+            ) : (
+              <Switch
+                value={bioEnabled}
+                onValueChange={handleBiometricToggle}
+                trackColor={{ false: '#DCE3EA', true: '#A7F3D0' }}
+                thumbColor={bioEnabled ? '#176B52' : '#94A3B8'}
+              />
+            )}
+          </View>
+        )}
 
         <Pressable
           style={[styles.logoutButton, loggingOut && styles.disabledButton]}
@@ -210,5 +273,31 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: 'bold',
     fontSize: 16,
+  },
+  biometricRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+    width: '100%',
+  },
+  biometricInfo: {
+    flex: 1,
+    marginRight: 12,
+  },
+  biometricLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#172B4D',
+    marginBottom: 4,
+  },
+  biometricHint: {
+    fontSize: 12,
+    color: '#64748B',
   },
 });

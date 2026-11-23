@@ -20,6 +20,10 @@ import {
   signInWithGoogle,
 } from '../services/authService';
 import { supabase } from '../lib/supabase';
+import {
+  isBiometricLockEnabled,
+  isBiometricAvailable,
+} from '../services/biometricService';
 
 export default function Index() {
   const params = useLocalSearchParams();
@@ -27,7 +31,6 @@ export default function Index() {
 
   useEffect(() => {
     if (params.confirmed === 'true') {
-      setIsLogin(true);
       return;
     }
 
@@ -35,7 +38,14 @@ export default function Index() {
       try {
         const { data } = await supabase.auth.getSession();
         if (data?.session?.user) {
-          router.replace('/home');
+          // Vérifier si le verrouillage biométrique est activé
+          const bioEnabled = await isBiometricLockEnabled();
+          const bioAvailable = await isBiometricAvailable();
+          if (bioEnabled && bioAvailable) {
+            router.replace('/lock');
+          } else {
+            router.replace('/home');
+          }
         }
       } catch (err) {
         console.log('[Auth] Aucune session active au démarrage:', err);

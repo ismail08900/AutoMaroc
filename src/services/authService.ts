@@ -222,7 +222,7 @@ export const signInWithGoogle = async (): Promise<{
   const redirectTo = getAuthRedirectUri('auth/callback');
 
   if (Platform.OS === 'web') {
-    const { data, error } = await supabase.auth.signInWithOAuth({
+    const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
         redirectTo,
