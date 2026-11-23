@@ -1,16 +1,45 @@
-import * as LocalAuthentication from 'expo-local-authentication';
+import { requireOptionalNativeModule } from 'expo';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
 const BIOMETRIC_ENABLED_KEY = '@automaroc_biometric_enabled';
 
 /**
+ * Vérifie si le module natif ExpoLocalAuthentication est présent dans le build Android/iOS.
+ * Évite le crash "Cannot find native module 'ExpoLocalAuthentication'"
+ * si l'application s'exécute sur un APK compilé avant l'ajout de la dépendance.
+ */
+export const isNativeBiometricModuleAvailable = (): boolean => {
+  if (Platform.OS === 'web') return false;
+  try {
+    const nativeModule = requireOptionalNativeModule('ExpoLocalAuthentication');
+    return nativeModule != null;
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * Récupère le module expo-local-authentication de manière sécurisée.
+ */
+const getLocalAuth = () => {
+  if (!isNativeBiometricModuleAvailable()) return null;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    return require('expo-local-authentication') as typeof import('expo-local-authentication');
+  } catch {
+    return null;
+  }
+};
+
+/**
  * Vérifie si le téléphone possède du matériel biométrique (capteur d'empreinte, Face ID…).
  */
 export const hasBiometricHardware = async (): Promise<boolean> => {
-  if (Platform.OS === 'web') return false;
+  const LocalAuth = getLocalAuth();
+  if (!LocalAuth) return false;
   try {
-    return await LocalAuthentication.hasHardwareAsync();
+    return await LocalAuth.hasHardwareAsync();
   } catch {
     return false;
   }
@@ -20,9 +49,10 @@ export const hasBiometricHardware = async (): Promise<boolean> => {
  * Vérifie si l'utilisateur a enregistré au moins une empreinte / visage sur le téléphone.
  */
 export const isBiometricEnrolled = async (): Promise<boolean> => {
-  if (Platform.OS === 'web') return false;
+  const LocalAuth = getLocalAuth();
+  if (!LocalAuth) return false;
   try {
-    return await LocalAuthentication.isEnrolledAsync();
+    return await LocalAuth.isEnrolledAsync();
   } catch {
     return false;
   }
@@ -32,6 +62,7 @@ export const isBiometricEnrolled = async (): Promise<boolean> => {
  * Vérifie si la biométrie est disponible ET configurée sur le téléphone.
  */
 export const isBiometricAvailable = async (): Promise<boolean> => {
+  if (!isNativeBiometricModuleAvailable()) return false;
   const hasHardware = await hasBiometricHardware();
   const isEnrolled = await isBiometricEnrolled();
   return hasHardware && isEnrolled;
@@ -73,8 +104,16 @@ export const authenticateWithBiometric = async (): Promise<{
   success: boolean;
   error?: string;
 }> => {
+  const LocalAuth = getLocalAuth();
+  if (!LocalAuth) {
+    return {
+      success: false,
+      error: 'Le module biométrique natif n\'est pas disponible dans ce build.',
+    };
+  }
+
   try {
-    const result = await LocalAuthentication.authenticateAsync({
+    const result = await LocalAuth.authenticateAsync({
       promptMessage: 'Déverrouillez AutoMaroc',
       cancelLabel: 'Annuler',
       fallbackLabel: 'Utiliser le code',
