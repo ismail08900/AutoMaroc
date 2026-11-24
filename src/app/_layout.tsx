@@ -7,7 +7,7 @@ import {
   isBiometricLockEnabled,
   isBiometricAvailable,
 } from '../services/biometricService';
-import LottieIntro from '../components/LottieIntro';
+import VideoIntro from '../components/VideoIntro';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -89,7 +89,7 @@ export default function RootLayout() {
       </Stack>
 
       {!splashFinished && (
-        <LottieIntro onFinish={handleSplashFinish} />
+        <VideoIntro onFinish={handleSplashFinish} />
       )}
     </View>
   );

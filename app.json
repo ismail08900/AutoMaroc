@@ -41,7 +41,8 @@
         {
           "faceIDPermission": "Autoriser AutoMaroc à utiliser Face ID pour le verrouillage de l'application."
         }
-      ]
+      ],
+      "expo-video"
     ],
     "experiments": {
       "typedRoutes": true,
