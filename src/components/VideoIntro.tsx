@@ -12,8 +12,8 @@ import * as NavigationBar from 'expo-navigation-bar';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import AutomotiveSplash from './AutomotiveSplash';
 
-// Source vidéo officielle AutoMaroc
-const videoSource = require('../../assets/videos/automaroc_intro.mp4');
+// Source vidéo officielle AutoMaroc (format vertical 9:16 adapté mobile)
+const videoSource = require('../../assets/videos/automaroc_intro_vertical.mp4');
 
 interface VideoIntroProps {
   onFinish: () => void;
@@ -132,12 +132,12 @@ function VideoPlayerComponent({ onFinish }: VideoIntroProps) {
     <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
       <StatusBar hidden={true} />
 
-      {/* Conteneur vidéo adapté pour occuper une zone plus généreuse sans déformation */}
+      {/* Conteneur vidéo plein écran vertical 9:16 sans déformation ni bandes noires */}
       <View style={styles.videoWrapper}>
         <VideoView
           player={player}
           nativeControls={false}
-          contentFit="contain"
+          contentFit="cover"
           style={styles.video}
           fullscreenOptions={{ enable: false }}
           showsTimecodes={false}
@@ -184,7 +184,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#6C3CE1',
     zIndex: 99999,
     justifyContent: 'center',
     alignItems: 'center',
@@ -194,14 +194,13 @@ const styles = StyleSheet.create({
     height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#6C3CE1',
     overflow: 'hidden',
   },
   video: {
     width: '100%',
     height: '100%',
-    backgroundColor: '#FFFFFF',
-    transform: [{ scale: 1.25 }],
+    backgroundColor: '#6C3CE1',
   },
   topBar: {
     position: 'absolute',
@@ -221,13 +220,13 @@ const styles = StyleSheet.create({
     gap: 4,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.15,
     shadowRadius: 6,
     elevation: 4,
   },
   skipButtonPressed: {
     backgroundColor: '#F1F5F9',
-    borderColor: '#176B52',
+    borderColor: '#6C3CE1',
   },
   skipButtonText: {
     color: '#1E293B',
@@ -236,7 +235,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   skipButtonChevron: {
-    color: '#176B52',
+    color: '#6C3CE1',
     fontSize: 16,
     fontWeight: '700',
     marginTop: -2,
