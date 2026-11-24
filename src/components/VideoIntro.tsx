@@ -7,7 +7,8 @@ import {
   Pressable,
   Platform,
 } from 'react-native';
-import { StatusBar } from 'expo-status-bar';
+import { StatusBar, setStatusBarHidden } from 'expo-status-bar';
+import * as NavigationBar from 'expo-navigation-bar';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import AutomotiveSplash from './AutomotiveSplash';
 
@@ -63,6 +64,12 @@ function VideoPlayerComponent({ onFinish }: VideoIntroProps) {
     if (hasFinishedRef.current) return;
     hasFinishedRef.current = true;
 
+    // Restaurer immédiatement la Status Bar et la Navigation Bar Android
+    setStatusBarHidden(false, 'fade');
+    if (Platform.OS === 'android') {
+      NavigationBar.setVisibilityAsync('visible').catch(() => {});
+    }
+
     // Transition fluide de sortie en fondu (300ms)
     Animated.timing(fadeAnim, {
       toValue: 0,
@@ -72,6 +79,21 @@ function VideoPlayerComponent({ onFinish }: VideoIntroProps) {
       onFinishRef.current();
     });
   }, [fadeAnim]);
+
+  // Masquer la Status Bar et Navigation Bar pendant l'intro, et restaurer au démontage
+  useEffect(() => {
+    setStatusBarHidden(true, 'fade');
+    if (Platform.OS === 'android') {
+      NavigationBar.setVisibilityAsync('hidden').catch(() => {});
+    }
+
+    return () => {
+      setStatusBarHidden(false, 'fade');
+      if (Platform.OS === 'android') {
+        NavigationBar.setVisibilityAsync('visible').catch(() => {});
+      }
+    };
+  }, []);
 
   // Initialisation du lecteur vidéo expo-video
   const player = useVideoPlayer(videoSource, (p) => {
@@ -108,17 +130,19 @@ function VideoPlayerComponent({ onFinish }: VideoIntroProps) {
 
   return (
     <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
-      <StatusBar style="light" hidden={false} />
+      <StatusBar hidden={true} />
 
-      {/* Vue plein écran de la vidéo AutoMaroc avec préservation du ratio d'aspect */}
-      <VideoView
-        player={player}
-        nativeControls={false}
-        contentFit="contain"
-        style={styles.video}
-        fullscreenOptions={{ enable: false }}
-        showsTimecodes={false}
-      />
+      {/* Conteneur vidéo adapté pour occuper une zone plus généreuse sans déformation */}
+      <View style={styles.videoWrapper}>
+        <VideoView
+          player={player}
+          nativeControls={false}
+          contentFit="contain"
+          style={styles.video}
+          fullscreenOptions={{ enable: false }}
+          showsTimecodes={false}
+        />
+      </View>
 
       {/* Bouton Skip natif discret et élégant en haut à droite */}
       <View style={styles.topBar}>
@@ -160,15 +184,24 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: '#000000',
+    backgroundColor: '#FFFFFF',
     zIndex: 99999,
     justifyContent: 'center',
     alignItems: 'center',
   },
+  videoWrapper: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    overflow: 'hidden',
+  },
   video: {
     width: '100%',
     height: '100%',
-    backgroundColor: '#000000',
+    backgroundColor: '#FFFFFF',
+    transform: [{ scale: 1.25 }],
   },
   topBar: {
     position: 'absolute',
@@ -179,26 +212,31 @@ const styles = StyleSheet.create({
   skipButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(15, 23, 42, 0.75)',
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: 'rgba(255, 255, 255, 0.92)',
+    borderColor: '#E2E8F0',
     borderWidth: 1,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
     gap: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 4,
   },
   skipButtonPressed: {
-    backgroundColor: 'rgba(30, 41, 59, 0.9)',
-    borderColor: '#10B981',
+    backgroundColor: '#F1F5F9',
+    borderColor: '#176B52',
   },
   skipButtonText: {
-    color: '#F8FAFC',
+    color: '#1E293B',
     fontSize: 13,
     fontWeight: '600',
     letterSpacing: 0.5,
   },
   skipButtonChevron: {
-    color: '#10B981',
+    color: '#176B52',
     fontSize: 16,
     fontWeight: '700',
     marginTop: -2,
